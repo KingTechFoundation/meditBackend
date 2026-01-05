@@ -3,31 +3,43 @@ let transporter = null;
 
 const initializeEmailService = () => {
   if (!transporter) {
+    const emailUser = process.env.EMAIL_USER || process.env.SMTP_USER;
+    const emailPassword = process.env.EMAIL_PASSWORD || process.env.SMTP_PASSWORD;
+    
+    if (!emailUser || !emailPassword) {
+      console.warn('⚠️ Email service not configured. Email notifications will be disabled.');
+      return null;
+    }
+
     transporter = nodemailer.createTransport({
       host: process.env.EMAIL_HOST || process.env.SMTP_HOST || 'smtp.gmail.com',
       port: parseInt(process.env.EMAIL_PORT || process.env.SMTP_PORT || '587'),
       secure: process.env.EMAIL_SECURE === 'true' || process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
       auth: {
-        user: process.env.EMAIL_USER || process.env.SMTP_USER,
-        pass: process.env.EMAIL_PASSWORD || process.env.SMTP_PASSWORD, // Use app password for Gmail
+        user: emailUser,
+        pass: emailPassword, // Use app password for Gmail
       },
+      // Add connection timeout settings for Render/production environments
+      connectionTimeout: 10000, // 10 seconds
+      greetingTimeout: 5000, // 5 seconds
+      socketTimeout: 10000, // 10 seconds
     });
 
-    // Verify connection
-    transporter.verify((error, success) => {
-      if (error) {
-        console.error('❌ Email service configuration error:', error);
-      } else {
-        console.log('✅ Email service is ready to send messages');
-      }
-    });
+    // Skip verification entirely to avoid timeout issues in production
+    // In production environments like Render, SMTP verification can timeout
+    // Email sending will be attempted when needed, and errors will be handled gracefully
+    // We skip verification to prevent blocking server startup
+    console.log('✅ Email service transporter created (verification skipped to prevent timeout issues)');
   }
   return transporter;
 };
 
-// Initialize on module load
+// Initialize on module load (non-blocking)
 if ((process.env.EMAIL_USER || process.env.SMTP_USER) && (process.env.EMAIL_PASSWORD || process.env.SMTP_PASSWORD)) {
-  initializeEmailService();
+  // Don't block - initialize asynchronously
+  setTimeout(() => {
+    initializeEmailService();
+  }, 0);
 }
 
 const sendEmail = async (to, subject, html, text = '') => {
