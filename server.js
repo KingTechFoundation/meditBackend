@@ -27,7 +27,7 @@ app.use(
   cors({
     origin:
       process.env.FRONTEND_URL ||
-      'https://vedafinalyearprojectmedifitai.netlify.app/',
+      'https://vedafinalyearprojectmedifitai.netlify.app',
     credentials: true,
   })
 );

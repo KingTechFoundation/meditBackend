@@ -10,6 +10,10 @@ const {
   activatePlan,
   createWorkoutSession,
   createWorkoutPlan,
+  updateWorkoutSession,
+  startWorkout,
+  completeWorkout,
+  skipWorkout,
 } = require('../controllers/workoutController');
 
 // @route   GET /api/workouts/plans
@@ -51,6 +55,26 @@ router.post('/plans/:id/activate', authenticateToken, activatePlan);
 // @desc    Create or update workout session
 // @access  Private
 router.post('/sessions', authenticateToken, createWorkoutSession);
+
+// @route   PUT /api/workouts/sessions/:id
+// @desc    Update workout session
+// @access  Private
+router.put('/sessions/:id', authenticateToken, updateWorkoutSession);
+
+// @route   POST /api/workouts/sessions/:id/start
+// @desc    Start workout session
+// @access  Private
+router.post('/sessions/:id/start', authenticateToken, startWorkout);
+
+// @route   POST /api/workouts/sessions/:id/complete
+// @desc    Complete workout session
+// @access  Private
+router.post('/sessions/:id/complete', authenticateToken, completeWorkout);
+
+// @route   POST /api/workouts/sessions/:id/skip
+// @desc    Skip workout session
+// @access  Private
+router.post('/sessions/:id/skip', authenticateToken, skipWorkout);
 
 module.exports = router;
 

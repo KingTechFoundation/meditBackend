@@ -263,10 +263,134 @@ const addWater = async (req, res) => {
   }
 };
 
+// @route   POST /api/health-tracker/add-sleep
+// @desc    Add/update sleep hours for today's tracker
+// @access  Private
+const addSleep = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { hours } = req.body;
+
+    if (hours === undefined || hours < 0 || hours > 24) {
+      return res.status(400).json({
+        success: false,
+        message: 'Sleep hours must be between 0 and 24',
+      });
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    let tracker = await HealthTracker.findOne({
+      userId,
+      date: { $gte: today, $lte: endOfDay },
+    });
+
+    const user = await User.findById(userId).select('onboardingData');
+    const waterGoal = user?.onboardingData?.waterIntake || 8;
+    const sleepGoal = user?.onboardingData?.sleepHours || 8;
+
+    if (tracker) {
+      tracker.sleep = hours;
+      await tracker.save();
+    } else {
+      tracker = new HealthTracker({
+        userId,
+        date: today,
+        stepsGoal: 10000,
+        waterGoal,
+        sleep: hours,
+        sleepGoal,
+        activeMinutesGoal: 60,
+      });
+      await tracker.save();
+    }
+
+    res.json({
+      success: true,
+      data: {
+        tracker,
+      },
+    });
+  } catch (error) {
+    console.error('Add sleep error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to add sleep',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+};
+
+// @route   POST /api/health-tracker/set-weight
+// @desc    Set weight for today's tracker
+// @access  Private
+const setWeight = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { weight } = req.body;
+
+    if (!weight || weight <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Weight must be a positive number',
+      });
+    }
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const endOfDay = new Date(today);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    let tracker = await HealthTracker.findOne({
+      userId,
+      date: { $gte: today, $lte: endOfDay },
+    });
+
+    const user = await User.findById(userId).select('onboardingData');
+    const waterGoal = user?.onboardingData?.waterIntake || 8;
+    const sleepGoal = user?.onboardingData?.sleepHours || 8;
+
+    if (tracker) {
+      tracker.weight = weight;
+      await tracker.save();
+    } else {
+      tracker = new HealthTracker({
+        userId,
+        date: today,
+        stepsGoal: 10000,
+        waterGoal,
+        sleepGoal,
+        activeMinutesGoal: 60,
+        weight,
+      });
+      await tracker.save();
+    }
+
+    res.json({
+      success: true,
+      data: {
+        tracker,
+      },
+    });
+  } catch (error) {
+    console.error('Set weight error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to set weight',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+};
+
 module.exports = {
   getHealthTracker,
   updateHealthTracker,
   addSteps,
   addWater,
+  addSleep,
+  setWeight,
 };
 

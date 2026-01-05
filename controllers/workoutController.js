@@ -658,6 +658,202 @@ const scheduleWorkoutsForCurrentWeek = async (userId, activePlan) => {
   }
 };
 
+// @route   PUT /api/workouts/sessions/:id
+// @desc    Update a workout session
+// @access  Private
+const updateWorkoutSession = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const updates = req.body;
+
+    const session = await WorkoutSession.findOne({ _id: id, userId });
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Workout session not found',
+      });
+    }
+
+    // Update fields
+    Object.keys(updates).forEach(key => {
+      if (updates[key] !== undefined) {
+        session[key] = updates[key];
+      }
+    });
+
+    await session.save();
+
+    res.json({
+      success: true,
+      data: {
+        session,
+      },
+    });
+  } catch (error) {
+    console.error('Update workout session error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to update workout session',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+};
+
+// @route   POST /api/workouts/sessions/:id/start
+// @desc    Start a workout session
+// @access  Private
+const startWorkout = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const session = await WorkoutSession.findOne({ _id: id, userId });
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Workout session not found',
+      });
+    }
+
+    session.status = 'in-progress';
+    session.startedAt = new Date();
+    await session.save();
+
+    // Send notification
+    try {
+      await createNotification(
+        userId,
+        'workout',
+        'Workout Started!',
+        `You've started "${session.workoutName}". Keep up the great work!`,
+        { 
+          sendEmail: false, // Don't send email for workout start
+          scheduledTime: 'Now',
+          actionUrl: '/workouts'
+        }
+      );
+    } catch (notifError) {
+      console.error('Error sending workout start notification:', notifError);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        session,
+      },
+    });
+  } catch (error) {
+    console.error('Start workout error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to start workout',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+};
+
+// @route   POST /api/workouts/sessions/:id/complete
+// @desc    Complete a workout session
+// @access  Private
+const completeWorkout = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+    const { duration, caloriesBurned } = req.body;
+
+    const session = await WorkoutSession.findOne({ _id: id, userId });
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Workout session not found',
+      });
+    }
+
+    session.status = 'completed';
+    session.completedAt = new Date();
+    if (duration) session.duration = duration;
+    if (caloriesBurned) session.calories = caloriesBurned;
+    
+    // Mark all exercises as completed
+    session.exercises.forEach(exercise => {
+      exercise.completed = true;
+    });
+
+    await session.save();
+
+    // Send celebration notification with email
+    try {
+      await createNotification(
+        userId,
+        'workout',
+        '🎉 Workout Completed!',
+        `Congratulations! You've completed "${session.workoutName}" and burned ${session.calories} calories. Keep crushing your fitness goals!`,
+        { 
+          sendEmail: true,
+          scheduledTime: 'Now',
+          actionUrl: '/analytics'
+        }
+      );
+    } catch (notifError) {
+      console.error('Error sending workout completion notification:', notifError);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        session,
+      },
+    });
+  } catch (error) {
+    console.error('Complete workout error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to complete workout',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+};
+
+// @route   POST /api/workouts/sessions/:id/skip
+// @desc    Skip a workout session
+// @access  Private
+const skipWorkout = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const userId = req.user.id;
+
+    const session = await WorkoutSession.findOne({ _id: id, userId });
+
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Workout session not found',
+      });
+    }
+
+    session.status = 'skipped';
+    await session.save();
+
+    res.json({
+      success: true,
+      data: {
+        session,
+      },
+    });
+  } catch (error) {
+    console.error('Skip workout error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to skip workout',
+      error: process.env.NODE_ENV === 'development' ? error.message : undefined,
+    });
+  }
+};
+
 module.exports = {
   getWorkoutPlans,
   getWorkoutPlanById,
@@ -667,5 +863,9 @@ module.exports = {
   activatePlan,
   createWorkoutPlan,
   createWorkoutSession,
+  updateWorkoutSession,
+  startWorkout,
+  completeWorkout,
+  skipWorkout,
 };
 

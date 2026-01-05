@@ -23,5 +23,15 @@ router.post('/add-steps', authenticateToken, healthTrackerController.addSteps);
 // @access  Private
 router.post('/add-water', authenticateToken, healthTrackerController.addWater);
 
+// @route   POST /api/health-tracker/add-sleep
+// @desc    Add/update sleep hours
+// @access  Private
+router.post('/add-sleep', authenticateToken, healthTrackerController.addSleep);
+
+// @route   POST /api/health-tracker/set-weight
+// @desc    Set weight
+// @access  Private
+router.post('/set-weight', authenticateToken, healthTrackerController.setWeight);
+
 module.exports = router;
 
